@@ -3,3 +3,7 @@
 indexes/
 __pycache__/
 *.pyc
+cache/
+indexes/
+data/
+topics-qrels/
