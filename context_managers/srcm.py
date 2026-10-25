@@ -1,35 +1,3 @@
-"""Condition D — SRCM: Structured Research-state Context Middleware (our method).
-
-Deterministic (no LLM calls, no learned compressor) compaction of the research trace.
-
-Two parts, as in the framework figure:
-
-  1. Research State Store (external working memory), filled by reading the trajectory:
-        Objective | Open questions | Claims | Evidence (verbatim) | Numerical values + calculation
-        results | Contradictions | Sources | Definitions | Assumptions | Limitations | Completed subtasks
-
-  2. Deterministic reduction rules, applied when the context passes `threshold` tokens:
-        R1  Merge duplicate findings (same normalized text, or near-identical text -> one entry, sources merged)
-        R2  Keep a source pointer only: a bulky search/open_document result is replaced by
-            "[doc 123 | title | N facts kept in Research State]"
-        R3  Never compress exact numbers: sentences with numbers are kept verbatim and listed under
-            "Numerical values"; calculator inputs/outputs are kept verbatim
-        R4  Keep conflicting findings side by side (same statement, different numbers -> both shown)
-        R5  Collapse finished subtasks to one line; keep open questions in full
-
-Shared rules from base.py are respected:
-  * messages are never deleted or inserted, only `content` is replaced;
-  * replacements are sticky, so between compactions the prompt prefix is identical (prompt cache hits);
-  * the state snapshot is written into the content of the FIRST user message and is refreshed only at a
-    compaction, so there is no extra system message mid-conversation.
-
-Notes written with take_note may optionally start with a tag (CLAIM:, DEFINITION:, ASSUMPTION:,
-LIMITATION:, CONTRADICTION:, OPEN:, DONE:). Untagged notes are treated as claims, so the agent prompt
-does not need to change (keeping the prompt identical across conditions).
-
-Settings via --cm-args, e.g. '{"K":3,"threshold":20000}'. Ablation switches: inject_state,
-source_pointers, merge_duplicates, keep_conflicts, collapse_done.
-"""
 from __future__ import annotations
 
 import json
