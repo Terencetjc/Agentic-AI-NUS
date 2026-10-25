@@ -15,13 +15,14 @@ import ast
 import json
 import operator
 import os
+import random
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
 from huggingface_hub import snapshot_download
-from openai import OpenAI
+from openai import OpenAI, RateLimitError, APIConnectionError, APITimeoutError, InternalServerError, BadRequestError
 from pyserini.search.lucene import LuceneSearcher
 
 from context_managers import make_manager
@@ -100,7 +101,7 @@ def get_document(searcher, doc_id):
     return str(raw)
 
 
-def load_questions(path, limit):
+def load_questions(path, limit, seed=None, exclude_ids=None):
     if not path:
         return [{"id": "manual", "question": input("You: ").strip()}]
     items = []
@@ -110,6 +111,10 @@ def load_questions(path, limit):
         else:
             data = json.load(f)
             items = data if isinstance(data, list) else data.get("questions", [])
+    if exclude_ids:
+        items = [item for i, item in enumerate(items) if str(item.get("id", i + 1)) not in exclude_ids] if all(isinstance(item, dict) for item in items) else items
+    if seed is not None:
+        random.Random(seed).shuffle(items)
     result = []
     for i, item in enumerate(items[:limit] if limit else items):
         if isinstance(item, str):
@@ -146,7 +151,17 @@ class ResearchAgent:
             params["tools"] = tools
             params["tool_choice"] = "auto"
         t0 = time.monotonic()
-        response = self.client.chat.completions.create(**params)
+        for attempt in range(self.args.api_retries + 1):
+            try:
+                response = self.client.chat.completions.create(**params)
+                break
+            except (RateLimitError, APIConnectionError, APITimeoutError, InternalServerError) as exc:
+                self.events.append({"purpose": purpose, "step": step, "retry": attempt + 1,
+                                    "error_type": type(exc).__name__, "error": str(exc)[:500]})
+                if attempt >= self.args.api_retries:
+                    raise
+                delay = min(30, 2 ** attempt) + random.uniform(0, 0.5)
+                time.sleep(delay)
         seconds = time.monotonic() - t0
         u = response.usage
         inp = (u.prompt_tokens or 0) if u else 0
@@ -191,15 +206,23 @@ class ResearchAgent:
             try:
                 messages = self.cm.build_messages(history)
                 assistant = self.api_call(messages, tools=self.tools, step=step)
+            except BadRequestError as exc:
+                msg = str(exc).lower()
+                stop_reason = "context_overflow" if any(t in msg for t in
+                    ("context length", "context window", "maximum context", "too many tokens")) else "api_error"
+                self.events.append({"step": step, "error_type": type(exc).__name__, "error": str(exc)[:1000]})
+                break
             except Exception as exc:
                 stop_reason = "api_error"
-                self.events.append({"step": step, "error": str(exc)})
+                self.events.append({"step": step, "error_type": type(exc).__name__, "error": str(exc)[:1000]})
                 break
             history.append(assistant.model_dump(exclude_none=True))
             if not assistant.tool_calls:
                 # Require explicit submit_answer as specified by the proposal.
                 if assistant.content:
                     print("Agent message (not submitted):", assistant.content[:300])
+                history.append({"role": "user", "content":
+                    "Please continue using the available tools. Finish by calling submit_answer."})
                 continue
             for call in assistant.tool_calls:
                 name = call.function.name
@@ -244,7 +267,9 @@ class ResearchAgent:
                 if name == "open_document" and isinstance(arg, dict) and "doc_id" in arg:
                     msg["doc_id"] = str(arg["doc_id"])
                 history.append(msg)
-                self.events.append({"step": step, "tool": name})
+                self.events.append({"step": step, "tool": name, "args": arg,
+                                    "result_chars": len(str(result)),
+                                    "tool_error": str(result).startswith("Tool error:")})
             if final_answer is not None:
                 break
         total_seconds = time.monotonic() - started
@@ -252,7 +277,8 @@ class ResearchAgent:
                 "reference_answer": task.get("reference_answer"), "condition": self.condition,
                 "answer": final_answer, "stop_reason": stop_reason, "steps": steps,
                 "notes": notes, "usage": dict(self.usage), "manager_stats": self.cm.stats(),
-                "total_seconds": round(total_seconds, 3), "events": self.events}
+                "total_seconds": round(total_seconds, 3), "events": self.events,
+                "history": history if self.args.save_history else None}
 
 
 def main():
@@ -260,6 +286,11 @@ def main():
     p.add_argument("mode", choices=["baseline", "memgpt", "llmlingua", "srcm"])
     p.add_argument("--questions", help="Path to JSONL or JSON question list; otherwise interactive")
     p.add_argument("--limit", type=int, default=None)
+    p.add_argument("--seed", type=int, default=None, help="Shuffle question order deterministically")
+    p.add_argument("--exclude-ids", default=None, help="Text file of pilot IDs to exclude")
+    p.add_argument("--api-retries", type=int, default=3)
+    p.add_argument("--save-history", action="store_true", help="Store full research history; large output")
+    p.add_argument("--resume", action="store_true", help="Append and skip IDs already in --out")
     p.add_argument("--out", default=None, help="Output JSONL path")
     p.add_argument("--max-steps", type=int, default=40)
     p.add_argument("--timeout", type=int, default=900, help="Per-question timeout in seconds")
@@ -275,16 +306,34 @@ def main():
     if not os.getenv("OPENROUTER_API_KEY"):
         p.error("Set OPENROUTER_API_KEY in .env")
     condition = {"baseline": "A", "memgpt": "B", "llmlingua": "C", "srcm": "D"}[args.mode]
-    questions = load_questions(args.questions, args.limit)
+    excluded = set()
+    if args.exclude_ids:
+        excluded = {line.strip() for line in Path(args.exclude_ids).read_text(encoding="utf-8").splitlines() if line.strip()}
+    questions = load_questions(args.questions, args.limit, args.seed, excluded)
     client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.environ["OPENROUTER_API_KEY"])
     searcher = load_searcher()
     agent = ResearchAgent(searcher, client, condition, args)
     out = Path(args.out or f"runs/{args.mode}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.jsonl")
     out.parent.mkdir(parents=True, exist_ok=True)
-    with out.open("w", encoding="utf-8") as f:
+    if out.exists() and not args.resume:
+        p.error(f"Output already exists: {out}. Choose a different --out or pass --resume.")
+    completed = set()
+    if args.resume and out.exists():
+        with out.open(encoding="utf-8") as existing:
+            for line in existing:
+                if line.strip():
+                    completed.add(str(json.loads(line)["id"]))
+    if not any((args.input_per_million, args.cached_per_million, args.output_per_million)):
+        print("WARNING: No API pricing supplied. estimated_cost_usd will be null, not $0.")
+    with out.open("a" if args.resume else "x", encoding="utf-8") as f:
         for i, question in enumerate(questions, 1):
+            if str(question["id"]) in completed:
+                print("Skipping completed:", question["id"])
+                continue
             print(f"\n[{i}/{len(questions)}] Condition {condition}: {question['id']}", flush=True)
             result = agent.run(question)
+            if not any((args.input_per_million, args.cached_per_million, args.output_per_million)):
+                result["usage"]["estimated_cost_usd"] = None
             print("Answer:", result["answer"])
             print("Stop:", result["stop_reason"], "Usage:", result["usage"])
             print("Context manager stats:", result["manager_stats"])
