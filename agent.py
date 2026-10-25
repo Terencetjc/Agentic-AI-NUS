@@ -287,6 +287,7 @@ def main():
             result = agent.run(question)
             print("Answer:", result["answer"])
             print("Stop:", result["stop_reason"], "Usage:", result["usage"])
+            print("Context manager stats:", result["manager_stats"])
             f.write(json.dumps(result, ensure_ascii=False) + "\n")
             f.flush()
     print("\nSaved:", out)

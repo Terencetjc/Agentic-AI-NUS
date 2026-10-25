@@ -47,7 +47,7 @@ class MemGPTStyleMemory(ContextManager):
         self.archive_raw = archive_raw
         self.archive: list[_ArchiveEntry] = []
         self.evicted: dict[str, str] = {}  # tool_call_id -> placeholder (sticky)
-        self._stats = {"evictions": 0, "memory_llm_calls": 0, "recall_calls": 0}
+        self._stats = {"evictions": 0, "memory_llm_calls": 0, "recall_calls": 0, "evicted_observations": 0}
 
     # -- tools --------------------------------------------------------------------------------
     def extra_tools(self) -> list[dict]:
@@ -111,6 +111,7 @@ class MemGPTStyleMemory(ContextManager):
 
         if batch:
             self._stats["evictions"] += 1
+            self._stats["evicted_observations"] += len(batch)
             obs = "\n\n".join(f"--- {s} ---\n{t[:6000]}" for s, t in batch)
             notes = self.llm(
                 [{"role": "user", "content": self.SUMMARY_PROMPT.format(question=question, observations=obs)}],
@@ -122,4 +123,6 @@ class MemGPTStyleMemory(ContextManager):
         return msgs
 
     def stats(self) -> dict:
-        return dict(self._stats, archive_size=len(self.archive))
+        return dict(self._stats, archive_size=len(self.archive),
+                    max_tokens=self.max_tokens, target_tokens=self.target_tokens,
+                    keep_recent=self.keep_recent)
