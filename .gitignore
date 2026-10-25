@@ -7,3 +7,7 @@ cache/
 indexes/
 data/
 topics-qrels/
+test_srcm.py
+runs/srcm_20261025_142129.jsonl
+runs/srcm_20261025_144024.jsonl
+runs/srcm.jsonl
