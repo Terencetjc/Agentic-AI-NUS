@@ -32,7 +32,7 @@ from context_managers.base import history_tokens
 SYSTEM = ("Answer the question using only BrowseComp-Plus documents. Search and open documents "
           "as needed. Record important evidence with take_note. When ready, call submit_answer. "
           "If evidence is insufficient, submit an answer stating that. Do not invent citations.")
-MODEL = os.getenv("OPENROUTER_MODEL", "anthropic/claude-sonnet-4.5")
+MODEL = os.getenv("OPENROUTER_MODEL", "anthropic/claude-haiku-5.5")
 
 
 def schema(name, description, properties, required):
