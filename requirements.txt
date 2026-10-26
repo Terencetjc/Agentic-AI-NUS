@@ -9,3 +9,4 @@ datasets
 rank_bm25
 huggingface_hub
 pyserini
+tiktoken

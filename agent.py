@@ -4,6 +4,7 @@ Examples:
     python agent.py baseline
     python agent.py memgpt
     python agent.py llmlingua
+    python agent.py srcm
     python agent.py baseline --questions questions.jsonl --limit 5
     python agent.py baseline --questions questions.jsonl --limit 120
 
@@ -132,8 +133,13 @@ class ResearchAgent:
         self.searcher, self.client, self.condition, self.args = searcher, client, condition, args
         self.events = []
         self.reset_usage()
-        self.cm = make_manager(condition, llm=self.memory_llm, **json.loads(args.cm_args))
+        self.cm_settings = json.loads(args.cm_args)
+        # Reuse C's expensive local model. B and D have question-specific memory/state.
+        self.cm = self._new_manager()
         self.tools = BASE_TOOLS + self.cm.extra_tools()
+
+    def _new_manager(self):
+        return make_manager(self.condition, llm=self.memory_llm, **self.cm_settings)
 
     def reset_usage(self):
         self.usage = {"input_tokens": 0, "output_tokens": 0, "cached_input_tokens": 0,
@@ -146,7 +152,7 @@ class ResearchAgent:
                   ("role", "content", "tool_calls", "tool_call_id", "name") and
                   not (k == "name" and m.get("role") == "tool")}
                  for m in messages]
-        params = {"model": MODEL, "messages": clean, "temperature": 0}
+        params = {"model": MODEL, "messages": clean, "temperature": 0, "max_tokens": 2048}
         if tools:
             params["tools"] = tools
             params["tool_choice"] = "auto"
@@ -188,10 +194,12 @@ class ResearchAgent:
         return self.api_call(messages, purpose=purpose).content or ""
 
     def run(self, task):
-        # Instantiate a new manager for each question: no memory leaks between benchmark runs.
+        # B and D require fresh per-question state; C reuses its loaded compressor.
         self.reset_usage()
-        self.cm = make_manager(self.condition, llm=self.memory_llm,
-                               **json.loads(self.args.cm_args))
+        if self.condition == "C":
+            self.cm.reset()
+        else:
+            self.cm = self._new_manager()
         self.tools = BASE_TOOLS + self.cm.extra_tools()
         history = [{"role": "system", "content": SYSTEM},
                    {"role": "user", "content": task["question"]}]
@@ -311,6 +319,11 @@ def main():
         excluded = {line.strip() for line in Path(args.exclude_ids).read_text(encoding="utf-8").splitlines() if line.strip()}
     questions = load_questions(args.questions, args.limit, args.seed, excluded)
     client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.environ["OPENROUTER_API_KEY"])
+    if condition == "D":
+        try:
+            from context_managers.srcm import SRCM  # noqa: F401
+        except ImportError as exc:
+            p.error(f"Condition D requires context_managers/srcm.py: {exc}")
     searcher = load_searcher()
     agent = ResearchAgent(searcher, client, condition, args)
     out = Path(args.out or f"runs/{args.mode}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.jsonl")
