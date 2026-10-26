@@ -172,47 +172,16 @@ Runs that end without an answer are scored as incorrect, and their cost still co
 ### Who owns what
 | Area | Files | Owner |
 |---|---|---|
-| Agent loop, tools, logging | `agent.py` | Agent |
+| Agent loop, tools, logging | `agent.py` | Agent (Terence) |
 | Conditions A, B, C | `context_managers/` except `srcm.py` | Conditions (Jie Yi) |
-| SRCM + ablations | `context_managers/srcm.py` | SRCM |
-| Data, pilot, grading, analysis | `scripts/`, `analysis/`, ID files | Pipeline & evaluation |
-
-Only edit files you own. If you need a change in someone else's file, ask them or open an issue. Because each person works in different files, merges rarely conflict.
-
-### Daily loop
-```bash
-git checkout main && git pull                 # start from the latest main
-git checkout -b <your-branch>                 # e.g. srcm, grading, cm-pilot-tuning
-# ...work...
-git add <your files>                          # add specific files; avoid `git add .`
-git status                                    # check: no .env, data/, cache/, indexes/
-git commit -m "Short description of the change"
-git push -u origin <your-branch>              # first push; afterwards just `git push`
-```
-Then open a **Pull Request** on GitHub and ask the owner of any affected area to review before merging.
-
-**If `main` changed while you were working:**
-```bash
-git checkout main && git pull
-git checkout <your-branch> && git merge main
-```
+| SRCM + ablations | `context_managers/srcm.py` | SRCM (Xylia) |
+| Data, pilot, grading, analysis | `scripts/`, `analysis/`, ID files | Pipeline & evaluation (Xuanxi) |
 
 ### Never commit
 ```
 .env  data/  topics-qrels/  indexes/  cache/  __pycache__/
 ```
 These are already in `.gitignore`. Runs: commit only the final `runs/main/` logs if the team agrees (they are needed to reproduce the figures). Pilot runs can stay local.
-
----
-
-## Adding SRCM (condition D)
-
-1. Create `context_managers/srcm.py` with `class SRCM(ContextManager)`.
-2. Override `build_messages(history)` for compaction. Read `name` and `doc_id` from tool messages, and the agent's notes from `take_note` calls.
-3. Follow the shared rules: never delete messages (only replace `content`), and keep replacements sticky so prompt caching survives.
-4. Pass settings through `--cm-args`, e.g. `'{"K":3,"threshold":20000}'`. Ablation switches go in the same way.
-
-`agent.py --condition D` and `make_manager("D")` already point to it.
 
 ---
 
