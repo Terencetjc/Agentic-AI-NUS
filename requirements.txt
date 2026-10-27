@@ -1,8 +1,8 @@
 openai
 python-dotenv
 numpy
-torch 
-transformers 
+torch
+transformers
 safetensors
 llmlingua
 datasets
@@ -10,3 +10,4 @@ rank_bm25
 huggingface_hub
 pyserini
 tiktoken
+cryptography

@@ -1,0 +1,88 @@
+{
+  "seed": 123,
+  "selected_count": 5,
+  "grading": "llm_judge_nonofficial_settings",
+  "conditions": {
+    "A": {
+      "questions": 5,
+      "graded": 5,
+      "correct": 1,
+      "accuracy": 0.2,
+      "total_tokens": 497417,
+      "avg_tokens": 99483.4,
+      "input_tokens": 493829,
+      "output_tokens": 3588,
+      "cached_input_tokens": 398464,
+      "api_calls": 87,
+      "avg_wall_seconds": 20.249200000000002,
+      "total_cost_usd": null,
+      "cost_per_correct_usd": null,
+      "stop_reasons": {
+        "submitted": 5
+      },
+      "token_reduction_vs_A": 0.0,
+      "accuracy_retention_vs_A": 1.0
+    },
+    "B": {
+      "questions": 5,
+      "graded": 5,
+      "correct": 2,
+      "accuracy": 0.4,
+      "total_tokens": 614336,
+      "avg_tokens": 122867.2,
+      "input_tokens": 610671,
+      "output_tokens": 3665,
+      "cached_input_tokens": 474112,
+      "api_calls": 86,
+      "avg_wall_seconds": 22.922,
+      "total_cost_usd": null,
+      "cost_per_correct_usd": null,
+      "stop_reasons": {
+        "submitted": 5
+      },
+      "token_reduction_vs_A": -0.23505228007888745,
+      "accuracy_retention_vs_A": 2.0
+    },
+    "C": {
+      "questions": 5,
+      "graded": 5,
+      "correct": 1,
+      "accuracy": 0.2,
+      "total_tokens": 585572,
+      "avg_tokens": 117114.4,
+      "input_tokens": 581336,
+      "output_tokens": 4236,
+      "cached_input_tokens": 472704,
+      "api_calls": 106,
+      "avg_wall_seconds": 32.7682,
+      "total_cost_usd": null,
+      "cost_per_correct_usd": null,
+      "stop_reasons": {
+        "submitted": 5
+      },
+      "token_reduction_vs_A": -0.17722554717671501,
+      "accuracy_retention_vs_A": 1.0
+    },
+    "D": {
+      "questions": 5,
+      "graded": 5,
+      "correct": 1,
+      "accuracy": 0.2,
+      "total_tokens": 940920,
+      "avg_tokens": 188184,
+      "input_tokens": 936272,
+      "output_tokens": 4648,
+      "cached_input_tokens": 677504,
+      "api_calls": 118,
+      "avg_wall_seconds": 29.373,
+      "total_cost_usd": null,
+      "cost_per_correct_usd": null,
+      "stop_reasons": {
+        "step_limit": 1,
+        "submitted": 4
+      },
+      "token_reduction_vs_A": -0.8916120679429935,
+      "accuracy_retention_vs_A": 1.0
+    }
+  }
+}

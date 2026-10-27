@@ -1,16 +1,3 @@
-"""Shared BrowseComp-Plus research agent for Conditions A/B/C/D.
-
-Examples:
-    python agent.py baseline
-    python agent.py memgpt
-    python agent.py llmlingua
-    python agent.py srcm
-    python agent.py baseline --questions questions.jsonl --limit 5
-    python agent.py baseline --questions questions.jsonl --limit 120
-
-JSONL questions: one object per line, e.g. {"id":"q1","question":"...","answer":"..."}.
-The answer field is stored as reference metadata; this script does NOT grade answers.
-"""
 import argparse
 import ast
 import json
@@ -29,11 +16,14 @@ from pyserini.search.lucene import LuceneSearcher
 from context_managers import make_manager
 from context_managers.base import history_tokens
 
-SYSTEM = ("Answer the question using only BrowseComp-Plus documents. Search and open documents "
-          "as needed. Record important evidence with take_note. When ready, call submit_answer. "
-          "If evidence is insufficient, submit an answer stating that. Do not invent citations.")
-MODEL = os.getenv("OPENROUTER_MODEL", "anthropic/claude-haiku-5.5")
-
+SYSTEM = ("Answer questions using only BrowseComp-Plus documents. "
+          "Search for relevant documents using BM25 and open promising documents to read them. "
+          "Avoid repeating searches that have already returned insufficient evidence. "
+          "If a search was repeated, open a relevant document or try a substantially different query. "
+          "Use take_note to save important facts and document IDs. "
+          "When you have enough evidence, call submit_answer. "
+          "If evidence remains insufficient, submit an answer stating that. Do not invent citations.")
+MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-4.1-mini")
 
 def schema(name, description, properties, required):
     return {"type": "function", "function": {"name": name, "description": description,
@@ -55,7 +45,6 @@ BASE_TOOLS = [
 OPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul,
        ast.Div: operator.truediv, ast.FloorDiv: operator.floordiv, ast.Mod: operator.mod}
 
-
 def calculate(expr):
     def visit(node):
         if isinstance(node, ast.Expression):
@@ -71,7 +60,6 @@ def calculate(expr):
         raise ValueError("Expression too long")
     return str(visit(ast.parse(expr, mode="eval")))
 
-
 def load_searcher():
     index_path = Path("indexes/bm25")
     if not list(index_path.rglob("segments_*")):
@@ -84,7 +72,6 @@ def load_searcher():
     searcher = LuceneSearcher(str(roots[0]))
     searcher.set_bm25(k1=0.9, b=0.4)
     return searcher
-
 
 def get_document(searcher, doc_id):
     doc = searcher.doc(str(doc_id))
@@ -100,7 +87,6 @@ def get_document(searcher, doc_id):
     except (ValueError, TypeError):
         pass
     return str(raw)
-
 
 def load_questions(path, limit, seed=None, exclude_ids=None):
     if not path:
@@ -127,19 +113,13 @@ def load_questions(path, limit, seed=None, exclude_ids=None):
                        "reference_answer": item.get("answer")})
     return result
 
-
 class ResearchAgent:
     def __init__(self, searcher, client, condition, args):
         self.searcher, self.client, self.condition, self.args = searcher, client, condition, args
         self.events = []
         self.reset_usage()
-        self.cm_settings = json.loads(args.cm_args)
-        # Reuse C's expensive local model. B and D have question-specific memory/state.
-        self.cm = self._new_manager()
+        self.cm = make_manager(condition, llm=self.memory_llm, **json.loads(args.cm_args))
         self.tools = BASE_TOOLS + self.cm.extra_tools()
-
-    def _new_manager(self):
-        return make_manager(self.condition, llm=self.memory_llm, **self.cm_settings)
 
     def reset_usage(self):
         self.usage = {"input_tokens": 0, "output_tokens": 0, "cached_input_tokens": 0,
@@ -147,12 +127,13 @@ class ResearchAgent:
         self.events = []
 
     def api_call(self, messages, purpose="agent", tools=None, step=None):
-        # Internal metadata is used by context managers, not accepted by the API.
+
         clean = [{k: v for k, v in m.items() if k in
                   ("role", "content", "tool_calls", "tool_call_id", "name") and
                   not (k == "name" and m.get("role") == "tool")}
                  for m in messages]
-        params = {"model": MODEL, "messages": clean, "temperature": 0, "max_tokens": 2048}
+        params = {"model": MODEL, "messages": clean, "temperature": 0,
+                  "max_tokens": self.args.max_output_tokens}
         if tools:
             params["tools"] = tools
             params["tool_choice"] = "auto"
@@ -179,7 +160,7 @@ class ResearchAgent:
         self.usage["cached_input_tokens"] += cached
         self.usage["api_calls"] += 1
         self.usage["api_seconds"] += seconds
-        # Rates are supplied explicitly; defaults of zero avoid inventing provider prices.
+
         cost = (max(0, inp - cached) * self.args.input_per_million +
                 cached * self.args.cached_per_million +
                 out * self.args.output_per_million) / 1_000_000
@@ -194,16 +175,16 @@ class ResearchAgent:
         return self.api_call(messages, purpose=purpose).content or ""
 
     def run(self, task):
-        # B and D require fresh per-question state; C reuses its loaded compressor.
+
         self.reset_usage()
-        if self.condition == "C":
-            self.cm.reset()
-        else:
-            self.cm = self._new_manager()
+        self.cm = make_manager(self.condition, llm=self.memory_llm,
+                               **json.loads(self.args.cm_args))
         self.tools = BASE_TOOLS + self.cm.extra_tools()
         history = [{"role": "system", "content": SYSTEM},
                    {"role": "user", "content": task["question"]}]
         notes = []
+        search_cache = {}
+        repeated_searches = 0
         final_answer, stop_reason, steps = None, "step_limit", 0
         started = time.monotonic()
         for step in range(1, self.args.max_steps + 1):
@@ -226,7 +207,7 @@ class ResearchAgent:
                 break
             history.append(assistant.model_dump(exclude_none=True))
             if not assistant.tool_calls:
-                # Require explicit submit_answer as specified by the proposal.
+
                 if assistant.content:
                     print("Agent message (not submitted):", assistant.content[:300])
                 history.append({"role": "user", "content":
@@ -242,15 +223,30 @@ class ResearchAgent:
                     result = self.cm.handle_tool(name, arg)
                     if result is None:
                         if name == "search":
-                            hits = self.searcher.search(arg["query"], k=self.args.top_k)
-                            snippets = []
-                            for hit in hits:
-                                text = get_document(self.searcher, hit.docid)
-                                snippet = (text[:self.args.snippet_chars] if text else
-                                           "[Text unavailable in index]")
-                                snippets.append(f"Document {hit.docid}: {snippet}")
-                            result = "\n\n".join(snippets) or "No matching documents."
-                            print("Searching:", arg["query"])
+                            query = arg["query"]
+                            key = " ".join(query.casefold().split())
+                            if key in search_cache:
+                                repeated_searches += 1
+                                ids = search_cache[key]
+                                result = ("This exact search was already performed. "
+                                          "Do not repeat it. Open one of these documents "
+                                          "or use a substantially different query. "
+                                          "Previously returned document IDs: " +
+                                          (", ".join(ids) if ids else "none"))
+                                print("Repeated search:", query)
+                            else:
+                                hits = self.searcher.search(query, k=self.args.top_k)
+                                snippets = []
+                                ids = []
+                                for hit in hits:
+                                    ids.append(str(hit.docid))
+                                    text = get_document(self.searcher, hit.docid)
+                                    snippet = (text[:self.args.snippet_chars] if text else
+                                               "[Text unavailable in index]")
+                                    snippets.append(f"Document {hit.docid}: {snippet}")
+                                search_cache[key] = ids
+                                result = "\n\n".join(snippets) or "No matching documents."
+                                print("Searching:", query)
                         elif name == "open_document":
                             text = get_document(self.searcher, arg["doc_id"])
                             result = text[:self.args.document_chars] if text else "Document not found or text unavailable."
@@ -269,7 +265,7 @@ class ResearchAgent:
                     result = self.cm.on_observation(name, arg, str(result))
                 except Exception as exc:
                     result = f"Tool error: {exc}"
-                # Metadata is retained internally and stripped from API messages.
+
                 msg = {"role": "tool", "tool_call_id": call.id, "content": result,
                        "name": name}
                 if name == "open_document" and isinstance(arg, dict) and "doc_id" in arg:
@@ -284,10 +280,11 @@ class ResearchAgent:
         return {"id": task["id"], "question": task["question"],
                 "reference_answer": task.get("reference_answer"), "condition": self.condition,
                 "answer": final_answer, "stop_reason": stop_reason, "steps": steps,
-                "notes": notes, "usage": dict(self.usage), "manager_stats": self.cm.stats(),
+                "notes": notes, "repeated_searches": repeated_searches,
+                "unique_searches": len(search_cache),
+                "usage": dict(self.usage), "manager_stats": self.cm.stats(),
                 "total_seconds": round(total_seconds, 3), "events": self.events,
                 "history": history if self.args.save_history else None}
-
 
 def main():
     p = argparse.ArgumentParser()
@@ -297,12 +294,13 @@ def main():
     p.add_argument("--seed", type=int, default=None, help="Shuffle question order deterministically")
     p.add_argument("--exclude-ids", default=None, help="Text file of pilot IDs to exclude")
     p.add_argument("--api-retries", type=int, default=3)
+    p.add_argument("--max-output-tokens", type=int, default=2048)
     p.add_argument("--save-history", action="store_true", help="Store full research history; large output")
     p.add_argument("--resume", action="store_true", help="Append and skip IDs already in --out")
     p.add_argument("--out", default=None, help="Output JSONL path")
     p.add_argument("--max-steps", type=int, default=40)
     p.add_argument("--timeout", type=int, default=900, help="Per-question timeout in seconds")
-    p.add_argument("--top-k", type=int, default=3)
+    p.add_argument("--top-k", type=int, default=5)
     p.add_argument("--snippet-chars", type=int, default=400)
     p.add_argument("--document-chars", type=int, default=12000)
     p.add_argument("--cm-args", default="{}", help='JSON manager settings, e.g. {"rate":0.5}')
@@ -319,11 +317,6 @@ def main():
         excluded = {line.strip() for line in Path(args.exclude_ids).read_text(encoding="utf-8").splitlines() if line.strip()}
     questions = load_questions(args.questions, args.limit, args.seed, excluded)
     client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.environ["OPENROUTER_API_KEY"])
-    if condition == "D":
-        try:
-            from context_managers.srcm import SRCM  # noqa: F401
-        except ImportError as exc:
-            p.error(f"Condition D requires context_managers/srcm.py: {exc}")
     searcher = load_searcher()
     agent = ResearchAgent(searcher, client, condition, args)
     out = Path(args.out or f"runs/{args.mode}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.jsonl")
@@ -354,7 +347,6 @@ def main():
             f.flush()
     print("\nSaved:", out)
     print("Note: Reference answers are stored, but benchmark grading is not implemented.")
-
 
 if __name__ == "__main__":
     main()
