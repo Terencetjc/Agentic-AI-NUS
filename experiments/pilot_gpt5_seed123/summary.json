@@ -1,0 +1,288 @@
+{
+  "seed": 123,
+  "selected_count": 5,
+  "grading": "llm_judge_nonofficial_settings",
+  "configuration_complete": true,
+  "conditions": {
+    "A": {
+      "condition": "A",
+      "question_ids": [
+        "1046",
+        "5",
+        "575",
+        "674",
+        "898"
+      ],
+      "episode_count": 5,
+      "graded_count": 5,
+      "ungraded_count": 0,
+      "correct_count": 2,
+      "accuracy": 0.4,
+      "call_count": 160,
+      "error_call_count": 0,
+      "model_ids": [
+        "openai/gpt-5"
+      ],
+      "config_ids": [
+        "8c1213e0e6d44328c6ff59dac26bf5583f297d190c37f56140024d99861156d0"
+      ],
+      "input_tokens": 1262459,
+      "output_tokens": 170438,
+      "cached_input_tokens": 1115520,
+      "total_tokens": 1432897,
+      "api_cost_usd": null,
+      "cost_per_successful_task_usd": null,
+      "model_call_latency_seconds": 2458.4202249000045,
+      "episode_latency": {
+        "count": 5,
+        "measured_count": 5,
+        "mean": 492.737,
+        "median": 369.287,
+        "minimum": 128.013,
+        "maximum": 911.974
+      },
+      "model_call_time_per_episode": {
+        "count": 5,
+        "measured_count": 5,
+        "mean": 491.6840449800009,
+        "median": 368.2137632999984,
+        "minimum": 127.18277540000054,
+        "maximum": 910.3628586999948
+      },
+      "agent_steps": 160,
+      "tool_calls": 134,
+      "searches": 112,
+      "documents_opened": 10,
+      "model_identity_complete": true,
+      "questions": 5,
+      "graded": 5,
+      "correct": 2,
+      "avg_tokens": 286579.4,
+      "api_calls": 160,
+      "avg_wall_seconds": 492.737,
+      "total_cost_usd": null,
+      "cost_per_correct_usd": null,
+      "stop_reasons": {
+        "step_limit": 3,
+        "submitted": 2
+      },
+      "token_reduction_vs_A": 0.0,
+      "accuracy_retention_vs_A": 1.0
+    },
+    "B": {
+      "condition": "B",
+      "question_ids": [
+        "1046",
+        "5",
+        "575",
+        "674",
+        "898"
+      ],
+      "episode_count": 5,
+      "graded_count": 5,
+      "ungraded_count": 0,
+      "correct_count": 2,
+      "accuracy": 0.4,
+      "call_count": 156,
+      "error_call_count": 0,
+      "model_ids": [
+        "openai/gpt-5"
+      ],
+      "config_ids": [
+        "7680beb5979aebc0481bd9a35efaf7c8168780429772660382c191f6d308ec47"
+      ],
+      "input_tokens": 1237550,
+      "output_tokens": 185647,
+      "cached_input_tokens": 1072000,
+      "total_tokens": 1423197,
+      "api_cost_usd": null,
+      "cost_per_successful_task_usd": null,
+      "model_call_latency_seconds": 2469.907359200017,
+      "episode_latency": {
+        "count": 5,
+        "measured_count": 5,
+        "mean": 494.632,
+        "median": 514.501,
+        "minimum": 95.774,
+        "maximum": 800.852
+      },
+      "model_call_time_per_episode": {
+        "count": 5,
+        "measured_count": 5,
+        "mean": 493.98147184000334,
+        "median": 513.3648493000037,
+        "minimum": 95.47690530000546,
+        "maximum": 800.0673435000099
+      },
+      "agent_steps": 155,
+      "tool_calls": 125,
+      "searches": 110,
+      "documents_opened": 7,
+      "model_identity_complete": true,
+      "questions": 5,
+      "graded": 5,
+      "correct": 2,
+      "avg_tokens": 284639.4,
+      "api_calls": 156,
+      "avg_wall_seconds": 494.632,
+      "total_cost_usd": null,
+      "cost_per_correct_usd": null,
+      "stop_reasons": {
+        "step_limit": 3,
+        "submitted": 2
+      },
+      "token_reduction_vs_A": 0.006769502623007795,
+      "accuracy_retention_vs_A": 1.0
+    },
+    "C": {
+      "condition": "C",
+      "question_ids": [
+        "1046",
+        "5",
+        "575",
+        "674",
+        "898"
+      ],
+      "episode_count": 5,
+      "graded_count": 5,
+      "ungraded_count": 0,
+      "correct_count": 0,
+      "accuracy": 0.0,
+      "call_count": 199,
+      "error_call_count": 2,
+      "model_ids": [
+        "openai/gpt-5"
+      ],
+      "config_ids": [
+        "f51f8d77ab4c7523b739500e22c79f7010ed380bcf7af9353c54eb240d0e9827"
+      ],
+      "input_tokens": null,
+      "output_tokens": null,
+      "cached_input_tokens": null,
+      "total_tokens": null,
+      "api_cost_usd": null,
+      "cost_per_successful_task_usd": null,
+      "model_call_latency_seconds": 2736.1475886000517,
+      "episode_latency": {
+        "count": 5,
+        "measured_count": 5,
+        "mean": 590.0466,
+        "median": 503.252,
+        "minimum": 289.099,
+        "maximum": 906.371
+      },
+      "model_call_time_per_episode": {
+        "count": 5,
+        "measured_count": 5,
+        "mean": 547.2295177200103,
+        "median": 464.4245311000341,
+        "minimum": 272.04799500000445,
+        "maximum": 853.0450384000142
+      },
+      "agent_steps": 197,
+      "tool_calls": 166,
+      "searches": 141,
+      "documents_opened": 18,
+      "model_identity_complete": true,
+      "questions": 5,
+      "graded": 5,
+      "correct": 0,
+      "avg_tokens": null,
+      "api_calls": 199,
+      "avg_wall_seconds": 590.0466,
+      "total_cost_usd": null,
+      "cost_per_correct_usd": null,
+      "stop_reasons": {
+        "step_limit": 4,
+        "timeout": 1
+      },
+      "token_reduction_vs_A": null,
+      "accuracy_retention_vs_A": 0.0
+    },
+    "D": {
+      "condition": "D",
+      "question_ids": [
+        "1046",
+        "5",
+        "575",
+        "674",
+        "898"
+      ],
+      "episode_count": 5,
+      "graded_count": 5,
+      "ungraded_count": 0,
+      "correct_count": 3,
+      "accuracy": 0.6,
+      "call_count": 147,
+      "error_call_count": 0,
+      "model_ids": [
+        "openai/gpt-5"
+      ],
+      "config_ids": [
+        "b5fd779a601a40fc25e3332e2a5d022f110a5d46fb251fb1b089c31257bb05fd"
+      ],
+      "input_tokens": 1190588,
+      "output_tokens": 150575,
+      "cached_input_tokens": 1016704,
+      "total_tokens": 1341163,
+      "api_cost_usd": null,
+      "cost_per_successful_task_usd": null,
+      "model_call_latency_seconds": 2249.6178501000104,
+      "episode_latency": {
+        "count": 5,
+        "measured_count": 5,
+        "mean": 450.815,
+        "median": 471.115,
+        "minimum": 93.975,
+        "maximum": 826.44
+      },
+      "model_call_time_per_episode": {
+        "count": 5,
+        "measured_count": 5,
+        "mean": 449.9235700200021,
+        "median": 470.72010129997216,
+        "minimum": 93.73759400000563,
+        "maximum": 825.7103390000048
+      },
+      "agent_steps": 147,
+      "tool_calls": 125,
+      "searches": 99,
+      "documents_opened": 12,
+      "model_identity_complete": true,
+      "questions": 5,
+      "graded": 5,
+      "correct": 3,
+      "avg_tokens": 268232.6,
+      "api_calls": 147,
+      "avg_wall_seconds": 450.815,
+      "total_cost_usd": null,
+      "cost_per_correct_usd": null,
+      "stop_reasons": {
+        "step_limit": 2,
+        "submitted": 3
+      },
+      "token_reduction_vs_A": 0.06401995398133986,
+      "accuracy_retention_vs_A": 1.4999999999999998
+    }
+  },
+  "selected_grades_usage": {
+    "estimated_cost_usd": null,
+    "api_calls": 7
+  },
+  "grading_usage": {
+    "estimated_cost_usd": null,
+    "api_calls": 14
+  },
+  "current_grading_invocation_usage": {
+    "estimated_cost_usd": 0,
+    "api_calls": 0
+  },
+  "grading_config": {
+    "model": "anthropic/claude-haiku-4.5",
+    "prompt": "Judge whether the following [response] to [question] is correct or not based on the precise and unambiguous [correct_answer] below.\n[question]: {question}\n[response]: {response}\n[correct_answer]: {correct_answer}\nYour judgement must be in the format and criteria specified below:\nextracted_final_answer: Extract the final answer from [response], or None if absent.\nreasoning: Compare only the extracted answer to [correct_answer]. Do not independently solve the question.\ncorrect: Answer yes if the extracted answer matches the correct answer, including semantically equivalent wording or a small margin of error for numerical problems; otherwise no.\nconfidence: Your confidence as a percentage.",
+    "temperature": 0,
+    "max_tokens": 500,
+    "parser_version": 1,
+    "protocol": "llm_judge_nonofficial_settings"
+  }
+}

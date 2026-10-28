@@ -1,0 +1,284 @@
+{
+  "seed": 123,
+  "selected_count": 5,
+  "grading": "llm_judge_nonofficial_settings",
+  "configuration_complete": true,
+  "conditions": {
+    "A": {
+      "condition": "A",
+      "question_ids": [
+        "1046",
+        "5",
+        "575",
+        "674",
+        "898"
+      ],
+      "episode_count": 5,
+      "graded_count": 5,
+      "ungraded_count": 0,
+      "correct_count": 2,
+      "accuracy": 0.4,
+      "call_count": 55,
+      "error_call_count": 0,
+      "model_ids": [
+        "openai/gpt-4.1"
+      ],
+      "config_ids": [
+        "9db4ad4d5bcdfb78c26c6daed37e36273dd77b5488077fd97dac766a9c550fa5"
+      ],
+      "input_tokens": 320291,
+      "output_tokens": 2103,
+      "cached_input_tokens": 267008,
+      "total_tokens": 322394,
+      "api_cost_usd": null,
+      "cost_per_successful_task_usd": null,
+      "model_call_latency_seconds": 71.34448239997437,
+      "episode_latency": {
+        "count": 5,
+        "measured_count": 5,
+        "mean": 14.5158,
+        "median": 12.669,
+        "minimum": 6.588,
+        "maximum": 30.511
+      },
+      "model_call_time_per_episode": {
+        "count": 5,
+        "measured_count": 5,
+        "mean": 14.268896479994874,
+        "median": 12.388435700006085,
+        "minimum": 6.500382000005629,
+        "maximum": 29.793377299967688
+      },
+      "agent_steps": 55,
+      "tool_calls": 55,
+      "searches": 38,
+      "documents_opened": 9,
+      "model_identity_complete": true,
+      "questions": 5,
+      "graded": 5,
+      "correct": 2,
+      "avg_tokens": 64478.8,
+      "api_calls": 55,
+      "avg_wall_seconds": 14.5158,
+      "total_cost_usd": null,
+      "cost_per_correct_usd": null,
+      "stop_reasons": {
+        "submitted": 5
+      },
+      "token_reduction_vs_A": 0.0,
+      "accuracy_retention_vs_A": 1.0
+    },
+    "B": {
+      "condition": "B",
+      "question_ids": [
+        "1046",
+        "5",
+        "575",
+        "674",
+        "898"
+      ],
+      "episode_count": 5,
+      "graded_count": 5,
+      "ungraded_count": 0,
+      "correct_count": 1,
+      "accuracy": 0.2,
+      "call_count": 50,
+      "error_call_count": 0,
+      "model_ids": [
+        "openai/gpt-4.1"
+      ],
+      "config_ids": [
+        "622449cfef5fc399c64c2559b5631e8e1a0a23c5f9f20b4eee81d8179d267f24"
+      ],
+      "input_tokens": 221279,
+      "output_tokens": 1817,
+      "cached_input_tokens": 180736,
+      "total_tokens": 223096,
+      "api_cost_usd": null,
+      "cost_per_successful_task_usd": null,
+      "model_call_latency_seconds": 66.24648439998418,
+      "episode_latency": {
+        "count": 5,
+        "measured_count": 5,
+        "mean": 13.403599999999999,
+        "median": 9.623,
+        "minimum": 6.583,
+        "maximum": 25.028
+      },
+      "model_call_time_per_episode": {
+        "count": 5,
+        "measured_count": 5,
+        "mean": 13.249296879996837,
+        "median": 9.361991399993713,
+        "minimum": 6.565855900014867,
+        "maximum": 24.717400499990617
+      },
+      "agent_steps": 50,
+      "tool_calls": 47,
+      "searches": 34,
+      "documents_opened": 6,
+      "model_identity_complete": true,
+      "questions": 5,
+      "graded": 5,
+      "correct": 1,
+      "avg_tokens": 44619.2,
+      "api_calls": 50,
+      "avg_wall_seconds": 13.403599999999999,
+      "total_cost_usd": null,
+      "cost_per_correct_usd": null,
+      "stop_reasons": {
+        "submitted": 5
+      },
+      "token_reduction_vs_A": 0.30800200996296456,
+      "accuracy_retention_vs_A": 0.5
+    },
+    "C": {
+      "condition": "C",
+      "question_ids": [
+        "1046",
+        "5",
+        "575",
+        "674",
+        "898"
+      ],
+      "episode_count": 5,
+      "graded_count": 5,
+      "ungraded_count": 0,
+      "correct_count": 1,
+      "accuracy": 0.2,
+      "call_count": 56,
+      "error_call_count": 0,
+      "model_ids": [
+        "openai/gpt-4.1"
+      ],
+      "config_ids": [
+        "c6906f8ca221dd2f7059524c7d51bc7b657f2f8c4a4f293fb39885ab11e29786"
+      ],
+      "input_tokens": 226843,
+      "output_tokens": 2386,
+      "cached_input_tokens": 186624,
+      "total_tokens": 229229,
+      "api_cost_usd": null,
+      "cost_per_successful_task_usd": null,
+      "model_call_latency_seconds": 78.7620480999758,
+      "episode_latency": {
+        "count": 5,
+        "measured_count": 5,
+        "mean": 18.3306,
+        "median": 16.817,
+        "minimum": 6.515,
+        "maximum": 37.021
+      },
+      "model_call_time_per_episode": {
+        "count": 5,
+        "measured_count": 5,
+        "mean": 15.75240961999516,
+        "median": 14.305780799979402,
+        "minimum": 6.453930700008641,
+        "maximum": 30.9974028999859
+      },
+      "agent_steps": 56,
+      "tool_calls": 53,
+      "searches": 38,
+      "documents_opened": 8,
+      "model_identity_complete": true,
+      "questions": 5,
+      "graded": 5,
+      "correct": 1,
+      "avg_tokens": 45845.8,
+      "api_calls": 56,
+      "avg_wall_seconds": 18.3306,
+      "total_cost_usd": null,
+      "cost_per_correct_usd": null,
+      "stop_reasons": {
+        "submitted": 5
+      },
+      "token_reduction_vs_A": 0.28897870307760065,
+      "accuracy_retention_vs_A": 0.5
+    },
+    "D": {
+      "condition": "D",
+      "question_ids": [
+        "1046",
+        "5",
+        "575",
+        "674",
+        "898"
+      ],
+      "episode_count": 5,
+      "graded_count": 5,
+      "ungraded_count": 0,
+      "correct_count": 1,
+      "accuracy": 0.2,
+      "call_count": 61,
+      "error_call_count": 0,
+      "model_ids": [
+        "openai/gpt-4.1"
+      ],
+      "config_ids": [
+        "a4dc225096d0ad484ea26407008444f23ca4b5b9ee386330ad3866e9f993ce36"
+      ],
+      "input_tokens": 285022,
+      "output_tokens": 2324,
+      "cached_input_tokens": 209792,
+      "total_tokens": 287346,
+      "api_cost_usd": null,
+      "cost_per_successful_task_usd": null,
+      "model_call_latency_seconds": 87.78817140001775,
+      "episode_latency": {
+        "count": 5,
+        "measured_count": 5,
+        "mean": 17.731,
+        "median": 13.474,
+        "minimum": 9.101,
+        "maximum": 37.02
+      },
+      "model_call_time_per_episode": {
+        "count": 5,
+        "measured_count": 5,
+        "mean": 17.557634280003548,
+        "median": 13.266668300006131,
+        "minimum": 9.053276700011338,
+        "maximum": 36.576562299989746
+      },
+      "agent_steps": 61,
+      "tool_calls": 59,
+      "searches": 40,
+      "documents_opened": 11,
+      "model_identity_complete": true,
+      "questions": 5,
+      "graded": 5,
+      "correct": 1,
+      "avg_tokens": 57469.2,
+      "api_calls": 61,
+      "avg_wall_seconds": 17.731,
+      "total_cost_usd": null,
+      "cost_per_correct_usd": null,
+      "stop_reasons": {
+        "submitted": 5
+      },
+      "token_reduction_vs_A": 0.10871170058996138,
+      "accuracy_retention_vs_A": 0.5
+    }
+  },
+  "selected_grades_usage": {
+    "estimated_cost_usd": null,
+    "api_calls": 20
+  },
+  "grading_usage": {
+    "estimated_cost_usd": null,
+    "api_calls": 20
+  },
+  "current_grading_invocation_usage": {
+    "estimated_cost_usd": null,
+    "api_calls": 20
+  },
+  "grading_config": {
+    "model": "anthropic/claude-haiku-4.5",
+    "prompt": "Judge whether the following [response] to [question] is correct or not based on the precise and unambiguous [correct_answer] below.\n[question]: {question}\n[response]: {response}\n[correct_answer]: {correct_answer}\nYour judgement must be in the format and criteria specified below:\nextracted_final_answer: Extract the final answer from [response], or None if absent.\nreasoning: Compare only the extracted answer to [correct_answer]. Do not independently solve the question.\ncorrect: Answer yes if the extracted answer matches the correct answer, including semantically equivalent wording or a small margin of error for numerical problems; otherwise no.\nconfidence: Your confidence as a percentage.",
+    "temperature": 0,
+    "max_tokens": 500,
+    "parser_version": 1,
+    "protocol": "llm_judge_nonofficial_settings"
+  }
+}

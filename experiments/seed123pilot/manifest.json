@@ -1,0 +1,299 @@
+{
+  "schema_version": 2,
+  "dataset_sha256": "192d704156f7e9ba7853134da95bb4e0889e5e1827176ee4ff054dd947c44d0c",
+  "seed": 123,
+  "selected_count": 5,
+  "selected_ids": [
+    "575",
+    "898",
+    "5",
+    "674",
+    "1046"
+  ],
+  "created_utc": "2026-10-28T15:07:22.359642+00:00",
+  "source": "data\\questions_830.jsonl",
+  "excluded_ids": [],
+  "research_config": {
+    "common": {
+      "max_steps": 40,
+      "timeout": 900,
+      "top_k": 5,
+      "snippet_chars": 400,
+      "document_chars": 12000,
+      "api_retries": 3,
+      "max_output_tokens": 2048,
+      "model": "openai/gpt-4.1",
+      "temperature": 0,
+      "system_prompt": "Answer questions using only BrowseComp-Plus documents. Search for relevant documents using BM25 and open promising documents to read them. Avoid repeating searches that have already returned insufficient evidence. If a search was repeated, open a relevant document or try a substantially different query. Use take_note to save important facts and document IDs. When you have enough evidence, call submit_answer. If evidence remains insufficient, submit an answer stating that. Do not invent citations.",
+      "base_tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "search",
+            "description": "BM25 search. Returns document IDs and short snippets.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "query"
+              ]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "open_document",
+            "description": "Read a document by its ID from a previous search.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "doc_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "doc_id"
+              ]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "take_note",
+            "description": "Save a research fact and its source in the scratchpad.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                },
+                "doc_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text",
+                "doc_id"
+              ]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "calculate",
+            "description": "Calculate an arithmetic expression.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "expression": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "expression"
+              ]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "submit_answer",
+            "description": "Finish the research episode with a short answer.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "answer": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "answer"
+              ]
+            }
+          }
+        }
+      ],
+      "index_identity": {
+        "files": [
+          {
+            "path": "_3.fdm",
+            "bytes": 957,
+            "mtime_ns": 1792598831960016100
+          },
+          {
+            "path": "_3.fdt",
+            "bytes": 1991597789,
+            "mtime_ns": 1792599140586710300
+          },
+          {
+            "path": "_3.fdx",
+            "bytes": 81648,
+            "mtime_ns": 1792598832126390000
+          },
+          {
+            "path": "_3.fnm",
+            "bytes": 343,
+            "mtime_ns": 1792598832149940400
+          },
+          {
+            "path": "_3.nvd",
+            "bytes": 100254,
+            "mtime_ns": 1792598833720519300
+          },
+          {
+            "path": "_3.nvm",
+            "bytes": 103,
+            "mtime_ns": 1792598832132499500
+          },
+          {
+            "path": "_3.si",
+            "bytes": 474,
+            "mtime_ns": 1792598832098241200
+          },
+          {
+            "path": "_3_Lucene90_0.dvd",
+            "bytes": 590329,
+            "mtime_ns": 1792598833939179900
+          },
+          {
+            "path": "_3_Lucene90_0.dvm",
+            "bytes": 192,
+            "mtime_ns": 1792598832232645300
+          },
+          {
+            "path": "_3_Lucene99_0.doc",
+            "bytes": 140473531,
+            "mtime_ns": 1792599034920731600
+          },
+          {
+            "path": "_3_Lucene99_0.tim",
+            "bytes": 36731670,
+            "mtime_ns": 1792598897557156100
+          },
+          {
+            "path": "_3_Lucene99_0.tip",
+            "bytes": 1046419,
+            "mtime_ns": 1792598833877985100
+          },
+          {
+            "path": "_3_Lucene99_0.tmd",
+            "bytes": 284,
+            "mtime_ns": 1792598832432850100
+          },
+          {
+            "path": "segments_3",
+            "bytes": 154,
+            "mtime_ns": 1792598832525949000
+          },
+          {
+            "path": "write.lock",
+            "bytes": 0,
+            "mtime_ns": 1792598832685105000
+          }
+        ],
+        "identity_kind": "local file metadata; not a corpus content hash"
+      },
+      "retry_policy": "outer api_retries plus unchanged SDK default retries",
+      "implementation": {
+        "agent.py": "ee2aae9f7eea6ca25fb061ad6063e1edb364b1e4f1a8d4d304187057ae14163c",
+        "context_managers/base.py": "290687b4ad1dd709a46b9e2e6092296f921a48b9815eec744c38000ce93e488d",
+        "context_managers/__init__.py": "3193cd79bcbc1fe31287b17a9c0630bc90af16a9adf336e2218992f9717b1233"
+      },
+      "openai_sdk_version": "3.35.1"
+    },
+    "methods": {
+      "A": {
+        "supplied_settings": {},
+        "resolved_defaults": {},
+        "effective_settings": {},
+        "implementation_sha256": "7c532dcd7fb152d7a54928a8b8b0a38d8c38a184d14529a49b08d4f69b2c48ea"
+      },
+      "B": {
+        "supplied_settings": {},
+        "resolved_defaults": {
+          "max_tokens": 24000,
+          "target_tokens": 12000,
+          "keep_recent": 3,
+          "recall_k": 3,
+          "archive_raw": true
+        },
+        "effective_settings": {
+          "max_tokens": 24000,
+          "target_tokens": 12000,
+          "keep_recent": 3,
+          "recall_k": 3,
+          "archive_raw": true
+        },
+        "implementation_sha256": "1446a43558827c8e657192af73ec3a8360fe627084e7ba90644f823af7f82ef8"
+      },
+      "C": {
+        "supplied_settings": {},
+        "resolved_defaults": {
+          "rate": 0.33,
+          "variant": "llmlingua2",
+          "model_name": null,
+          "device": "auto",
+          "cache_dir": "cache/llmlingua",
+          "compress_search": false,
+          "min_tokens": 80
+        },
+        "effective_settings": {
+          "rate": 0.33,
+          "variant": "llmlingua2",
+          "model_name": null,
+          "device": "auto",
+          "cache_dir": "cache/llmlingua",
+          "compress_search": false,
+          "min_tokens": 80
+        },
+        "implementation_sha256": "911b3da49a7e2c2f90ed0821e2eff1adc441260bbef7aa8daa10f96b2a623e7b"
+      },
+      "D": {
+        "supplied_settings": {},
+        "resolved_defaults": {
+          "K": 3,
+          "threshold": 8000,
+          "min_growth": 4000,
+          "keep_sentences": 3,
+          "max_state_tokens": 1200,
+          "keep_recent": true,
+          "dedup_search": true,
+          "reopen_pointer": true,
+          "reduce_uncited": true,
+          "protect_scratchpad": true,
+          "research_state": true,
+          "dedup_on_arrival": false
+        },
+        "effective_settings": {
+          "K": 3,
+          "threshold": 8000,
+          "min_growth": 4000,
+          "keep_sentences": 3,
+          "max_state_tokens": 1200,
+          "keep_recent": true,
+          "dedup_search": true,
+          "reopen_pointer": true,
+          "reduce_uncited": true,
+          "protect_scratchpad": true,
+          "research_state": true,
+          "dedup_on_arrival": false
+        },
+        "implementation_sha256": "cc9b283d37178b96f7949a722be4528d4834fd25247cf9d9db5c7338b72f792d"
+      }
+    }
+  },
+  "code_revision": "85543f1ad897a9b753eb02f4379327f8697d89ba",
+  "pricing": {
+    "input_per_million": null,
+    "cached_per_million": null,
+    "output_per_million": null
+  }
+}
