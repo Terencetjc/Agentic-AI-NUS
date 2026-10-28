@@ -21,7 +21,7 @@ def read_completed(path):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--questions', default='data/questions_830.jsonl')
-    p.add_argument('--count', type=int, default=120)
+    p.add_argument('--count', type=int, default=100)
     p.add_argument('--exclude-ids', default=None, help='Optional file containing pilot IDs to exclude')
     p.add_argument('--seed', type=int, default=42)
     p.add_argument('--out-dir', default='experiments/main_seed42')
