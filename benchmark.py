@@ -5,19 +5,18 @@ import random
 from datetime import datetime, timezone
 from pathlib import Path
 
-from agent import ResearchAgent, load_searcher, load_questions
+from agent import (BASE_TOOLS, SYSTEM, ResearchAgent, bootstrap_model, create_client,
+                   load_searcher, load_questions)
 from evaluate import evaluate
+from evaluation.diagnostics import DiagnosticStore
+from evaluation.experiment import (code_revision, fingerprint, pricing_from_args, read_records,
+                                   research_configuration, validate_resume)
 
 MODES = [('A', 'baseline'), ('B', 'memgpt'), ('C', 'llmlingua'), ('D', 'srcm')]
 
 def read_completed(path):
-    records = {}
-    if path.exists():
-        for line in path.read_text(encoding='utf-8').splitlines():
-            if line.strip():
-                row = json.loads(line)
-                records[str(row['id'])] = row
-    return records
+    """Read completed episode IDs while rejecting duplicate records."""
+    return read_records(path)
 
 def main():
     p = argparse.ArgumentParser()
@@ -35,18 +34,26 @@ def main():
     p.add_argument('--api-retries', type=int, default=3)
     p.add_argument('--max-output-tokens', type=int, default=2048)
     p.add_argument('--cm-args', default='{}')
-    p.add_argument('--input-per-million', type=float, default=0.0)
-    p.add_argument('--cached-per-million', type=float, default=0.0)
-    p.add_argument('--output-per-million', type=float, default=0.0)
+    p.add_argument('--condition-cm-args', default='{}')
+    p.add_argument('--model', default=None)
+    p.add_argument('--index-dir', default='indexes/bm25')
+    p.add_argument('--diagnostics', action='store_true')
+    p.add_argument('--ids', default=None, help='Use an existing fixed ID list instead of sampling')
+    p.add_argument('--preflight', action='store_true', help='Inspect configuration and local resources without writes or requests')
+    p.add_argument('--input-per-million', type=float, default=None)
+    p.add_argument('--cached-per-million', type=float, default=None)
+    p.add_argument('--output-per-million', type=float, default=None)
     p.add_argument('--max-budget-usd', type=float, default=None, help='Stop between questions when reported estimated spending reaches this amount')
-    p.add_argument('--judge-model', default=None, help='Optional paid judge; omitted = strict exact-match proxy')
+    p.add_argument('--judge-model', default=None, help='Optional paid judge; omitted = retain answers for later grading')
     p.add_argument('--save-history', action='store_true')
     p.add_argument('--dry-run', action='store_true', help='Only select and save questions, no API calls')
     a = p.parse_args()
+    bootstrap_model(a)
+    pricing = pricing_from_args(a)
     if a.count < 1:
         p.error('--count must be positive')
-    if a.max_budget_usd is not None and not any((a.input_per_million, a.cached_per_million, a.output_per_million)):
-        p.error('--max-budget-usd requires explicit nonzero pricing flags')
+    if a.max_budget_usd is not None and (a.max_budget_usd <= 0 or any(v is None for v in pricing.values())):
+        p.error('--max-budget-usd requires a positive cap and all three pricing rates')
     source = Path(a.questions)
     if not source.exists():
         p.error(f'Missing {source}. First run python prepare_questions.py, or supply a question JSONL file.')
@@ -62,50 +69,75 @@ def main():
     if a.count > len(questions):
         p.error(f'Asked for {a.count} questions but only {len(questions)} available')
     out = Path(a.out_dir)
-    out.mkdir(parents=True, exist_ok=True)
     manifest_path = out / 'manifest.json'
+    root = Path(__file__).parent
+    # Freeze all method configurations so condition subsets can share one run directory.
+    research_config = research_configuration(a, root, SYSTEM, BASE_TOOLS, [c for c, _ in MODES])
+    a.research_config = research_config
+    a.code_revision = code_revision(root)
+    fixed_ids = Path(a.ids).read_text(encoding='utf-8').splitlines() if a.ids else None
+    if fixed_ids is not None:
+        fixed_ids = [qid.strip() for qid in fixed_ids if qid.strip()]
+        if len(fixed_ids) != a.count or len(set(fixed_ids)) != len(fixed_ids) or not set(fixed_ids) <= set(ids):
+            p.error('--ids must contain exactly --count unique, available, non-excluded IDs')
     if manifest_path.exists():
         manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
-        if (manifest['dataset_sha256'] != digest or manifest['seed'] != a.seed or
-                manifest['selected_count'] != a.count or
-                manifest.get('excluded_ids', []) != sorted(excluded)):
-            p.error('Existing manifest differs in dataset/seed/count. Choose a new --out-dir.')
         chosen = manifest['selected_ids']
+        if len(chosen) != a.count or (fixed_ids is not None and chosen != fixed_ids):
+            p.error('Existing question selection differs; select a new output directory')
     else:
         shuffled = list(ids)
         random.Random(a.seed).shuffle(shuffled)
-        chosen = shuffled[:a.count]
-        manifest = {'dataset_sha256': digest, 'seed': a.seed, 'selected_count': a.count,
+        chosen = fixed_ids if fixed_ids is not None else shuffled[:a.count]
+        manifest = {'schema_version': 2, 'dataset_sha256': digest, 'seed': a.seed, 'selected_count': a.count,
                     'selected_ids': chosen, 'created_utc': datetime.now(timezone.utc).isoformat(),
-                    'source': str(source), 'excluded_ids': sorted(excluded)}
-        manifest_path.write_text(json.dumps(manifest, indent=2), encoding='utf-8')
+                    'source': str(source), 'excluded_ids': sorted(excluded),
+                    'research_config': research_config, 'code_revision': a.code_revision,
+                    'pricing': pricing}
+    expected = {'dataset_sha256': digest, 'seed': a.seed, 'selected_ids': chosen,
+                'excluded_ids': sorted(excluded), 'research_config': research_config}
+    existing = {c: read_completed(out / f'{c}.jsonl') for c, _ in MODES}
+    if not manifest_path.exists() and any(existing.values()):
+        p.error('Existing episodes lack a manifest; select a new output directory')
+    if manifest_path.exists():
+        validate_resume(manifest, expected, existing)
     by_id = {q['id']: q for q in questions}
     selected = [by_id[i] for i in chosen]
-    (out / 'selected_ids.txt').write_text('\n'.join(chosen) + '\n', encoding='utf-8')
+    if a.preflight:
+        print(json.dumps({'model': a.model, 'model_source': a.model_source,
+                          'questions': chosen, 'configuration': research_config, 'pricing': pricing,
+                          'index_present': any(Path(a.index_dir).rglob('segments_*'))}, indent=2))
+        return
+    out.mkdir(parents=True, exist_ok=True)
+    if not manifest_path.exists():
+        manifest_path.write_text(json.dumps(manifest, indent=2), encoding='utf-8')
+    if not (out / 'selected_ids.txt').exists():
+        (out / 'selected_ids.txt').write_text('\n'.join(chosen) + '\n', encoding='utf-8')
     print(f'Selected {len(chosen)} of {len(questions)} questions, seed={a.seed}. IDs saved to {out}/selected_ids.txt')
     if a.dry_run:
         print('Dry run: no model requests made.')
         return
-    from dotenv import load_dotenv
-    from openai import OpenAI
     import os
-    load_dotenv()
     if not os.getenv('OPENROUTER_API_KEY'):
         p.error('Missing OPENROUTER_API_KEY')
-    searcher = load_searcher()
-    client = OpenAI(base_url='https://openrouter.ai/api/v1', api_key=os.environ['OPENROUTER_API_KEY'])
+    searcher = load_searcher(a.index_dir)
+    client = create_client()
     a.seed = None
     a.resume = True
-    total_cost = 0.0
+    previous = [r for records in existing.values() for r in records.values()]
+    if a.max_budget_usd is not None and any((r.get('usage') or {}).get('estimated_cost_usd') is None for r in previous):
+        p.error('Existing spending is unknown; a spending-capped resume requires complete costs')
+    total_cost = sum((r.get('usage') or {}).get('estimated_cost_usd') or 0 for r in previous)
     for condition, mode in MODES:
         if condition not in a.conditions:
             continue
         a.mode = mode
-        agent = ResearchAgent(searcher, client, condition, a)
+        a.config_id = fingerprint({'common': research_config['common'], 'method': research_config['methods'][condition]})
+        diagnostics = DiagnosticStore(out / '.diagnostics' if a.diagnostics or a.save_history else None)
+        agent = ResearchAgent(searcher, client, condition, a, diagnostics=diagnostics)
         path = out / f'{condition}.jsonl'
         completed = read_completed(path)
 
-        total_cost += sum((r.get('usage') or {}).get('estimated_cost_usd') or 0 for r in completed.values())
         with path.open('a', encoding='utf-8') as f:
             for i, task in enumerate(selected, 1):
                 if task['id'] in completed:
@@ -115,16 +147,18 @@ def main():
                     return
                 print(f'[{condition} {i}/{len(selected)}] {task["id"]}', flush=True)
                 result = agent.run(task)
-                if not any((a.input_per_million, a.cached_per_million, a.output_per_million)):
-                    result['usage']['estimated_cost_usd'] = None
-                else:
-                    total_cost += result['usage']['estimated_cost_usd'] or 0
                 f.write(json.dumps(result, ensure_ascii=False) + '\n')
                 f.flush()
-                print(' ', result['stop_reason'], 'tokens:', (result['usage']['input_tokens'] + result['usage']['output_tokens']))
+                cost = result['usage']['estimated_cost_usd']
+                if cost is not None:
+                    total_cost += cost
+                print(' ', result['stop_reason'], 'usage:', result['usage'])
+                if a.max_budget_usd is not None and cost is None:
+                    print('Spending measurement is unknown; stopped after preserving the episode.')
+                    return
     if all(set(read_completed(out / f'{c}.jsonl')) == set(chosen) for c in a.conditions):
         if a.judge_model:
-            evaluate(out, a.judge_model)
+            evaluate(out, a.judge_model, a.conditions)
     else:
         print('Some conditions incomplete. Re-run with same --out-dir to resume.')
 

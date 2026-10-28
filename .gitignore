@@ -11,3 +11,13 @@ test_srcm.py
 runs/srcm_20261025_142129.jsonl
 runs/srcm_20261025_144024.jsonl
 runs/srcm.jsonl
+
+# Local development runs and optional model-call diagnostics.
+/runs/dev_*/
+/runs/dev_*.json
+.diagnostics/
+
+# Local configuration and exported credentials.
+.env.*
+*credentials*.csv
+*api_keys*.csv

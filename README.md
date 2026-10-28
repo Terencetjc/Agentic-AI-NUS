@@ -28,7 +28,7 @@ question ──────► │  loop:  messages = cm.build_messages(history)
                  │  until submit_answer / step limit / timeout                      │
                  └──────────────────────────────┬───────────────────────────────────┘
                                                 ▼
-                                   runs/<condition>/<query_id>.json
+                                   <run-dir>/<condition>.jsonl
                                                 ▼
                                    grading + analysis
 ```
@@ -42,10 +42,12 @@ agent.py                  batch runner: agent loop, tools, BM25 search, logging
 context_managers/         conditions A–D behind one interface (see its README)
 requirements.txt
 .env                      OPENROUTER_API_KEY=...   (not committed)
-topics-qrels/queries.tsv  decrypted questions       (not committed)
-indexes/                  BM25 index, auto-downloaded (not committed)
+data/questions_830.jsonl   prepared questions        (not committed)
+indexes/bm25/             prepared local BM25 index (not committed)
 cache/llmlingua/          compressed docs for C      (not committed)
-runs/                     one JSON log per question per condition
+runs/                     run outputs; sharing follows the group policy
+evaluation/               records, accounting, diagnostics and offline reports
+tests/                    synthetic offline unit and regression tests
 ```
 
 ---
@@ -66,104 +68,136 @@ java -version                      # should say 21
 
 **3. API key.** Create `.env` in the project root:
 ```
-OPENROUTER_API_KEY=sk-or-...
-AGENT_MODEL=<model chosen in the pilot>
+OPENROUTER_API_KEY=<set-locally>
+OPENROUTER_MODEL=<research-model-id>
 ```
 
-**4. Questions.** The BrowseComp-Plus questions are encrypted. Decrypt them with the authors' script:
+**4. Questions.** Run the preparation script manually to download and decrypt the
+BrowseComp-Plus test questions:
 ```bash
-git clone https://github.com/texttron/BrowseComp-Plus.git ../BrowseComp-Plus
-cd ../BrowseComp-Plus
-pip install datasets
-python scripts_build_index/decrypt_dataset.py \
-    --output data/browsecomp_plus_decrypted.jsonl \
-    --generate-tsv topics-qrels/queries.tsv
-cd -
-mkdir -p topics-qrels && cp ../BrowseComp-Plus/topics-qrels/queries.tsv topics-qrels/
+python prepare_questions.py --out data/questions_830.jsonl
 ```
-> ⚠️ Never commit decrypted questions or answers. The encryption exists to keep them out of future models' training data.
+Keep prepared questions and answers outside version control.
 
-**5. BM25 index.** Nothing to do: `agent.py` downloads it to `indexes/` on first run.
+**5. BM25 index.** Prepare the `bm25/` directory from
+[`Tevatron/browsecomp-plus-indexes`](https://huggingface.co/datasets/Tevatron/browsecomp-plus-indexes)
+under `indexes/bm25/`. Execution opens an existing local index; index downloads
+are a separate preparation step. Condition C also requires its configured local
+compressor resources. See [`context_managers/README.md`](context_managers/README.md)
+for method details.
 
-**6. Check the install**
+**6. Offline verification.** Run from the repository root:
 ```bash
-python -c "from context_managers import make_manager; print(make_manager('A').name)"   # → A_full
+python -B tests/run_offline.py
 ```
+The runner guards network connections and runtime dependency imports before test
+discovery. Tests use synthetic records, fake clients and temporary directories.
 
 ---
 
 ## Running experiments
 
-### Choose the question sets (once, then commit the ID files)
-Pilot and main sets **must not overlap**. Settings are tuned on the pilot, and results are reported on the main set.
+### Fix the question selection and configuration
+
+Development and main question sets must be disjoint. Keep the selected ID files
+and agreed settings fixed for each run. Set `QUESTION_COUNT` to the number of IDs
+in `selected_ids.txt` and `RESEARCH_MODEL` to the agreed provider model identifier.
+Check configuration and local index presence first:
+
 ```bash
-python -c "
-import random
-ids=[l.split('\t')[0] for l in open('topics-qrels/queries.tsv') if '\t' in l]
-random.Random(4213).shuffle(ids)
-open('pilot_ids.txt','w').write('\n'.join(ids[:10]))
-open('main_ids.txt','w').write('\n'.join(ids[10:210]))
-"
+python benchmark.py --questions data/questions_830.jsonl --ids selected_ids.txt \
+    --count "$QUESTION_COUNT" --model "$RESEARCH_MODEL" \
+    --out-dir experiments/selected-set --preflight
 ```
 
-### Pilot (tune, then freeze)
-```bash
-python agent.py --condition A --ids pilot_ids.txt --out runs/pilot/A
-python agent.py --condition B --ids pilot_ids.txt --out runs/pilot/B_16k --cm-args '{"max_tokens":16000,"target_tokens":8000}'
-python agent.py --condition B --ids pilot_ids.txt --out runs/pilot/B_32k --cm-args '{"max_tokens":32000,"target_tokens":16000}'
-python agent.py --condition C --ids pilot_ids.txt --out runs/pilot/C_r033 --cm-args '{"rate":0.33}'
-python agent.py --condition C --ids pilot_ids.txt --out runs/pilot/C_r05  --cm-args '{"rate":0.5}'
-python agent.py --condition D --ids pilot_ids.txt --out runs/pilot/D
-```
-Record the chosen settings in the **Frozen settings** table below before starting the main run.
+`--preflight` writes no files and initializes no provider client, searcher or
+context manager. `--dry-run` saves the manifest and selection without model
+requests. Run research separately after reviewing the configuration and budget:
 
-### Main run
 ```bash
-python agent.py --condition A --ids main_ids.txt --out runs/main/A
-# ...same for B, C, D using the frozen --cm-args
+python benchmark.py --questions data/questions_830.jsonl --ids selected_ids.txt \
+    --count "$QUESTION_COUNT" --model "$RESEARCH_MODEL" \
+    --out-dir experiments/selected-set --conditions A B C D --diagnostics
 ```
 
-**Run in parallel:** open several terminals and give each a shard:
-```bash
-python agent.py --condition A --ids main_ids.txt --out runs/main/A --shard 0/4
-python agent.py --condition A --ids main_ids.txt --out runs/main/A --shard 1/4   # ...2/4, 3/4
-```
+These research commands incur API charges. Supply the agreed
+`--input-per-million`, `--cached-per-million`, and `--output-per-million` rates for
+cost estimates; unavailable costs remain unknown. `--max-budget-usd` checks
+estimated spending between episodes and can be exceeded within an episode.
+Grading expenditure is accounted separately.
 
-**Resume after a crash:** rerun the same command. Questions that already have a log are skipped.
+Condition subsets can share a run directory when settings and selection match.
+Repeat the same command to resume; saved episodes are retained, including failed
+ones. Research-affecting changes and legacy manifests with missing configuration
+metadata require a new directory. An existing manifest's question set is fixed.
 
-### Fixed run settings (top of `agent.py`, the same for every condition)
-| Setting | Value |
+### Model and method settings
+
+Model precedence is `--model`, then `OPENROUTER_MODEL` after `.env` loading, then
+`openai/gpt-4.1-mini`. An inherited environment variable takes precedence over
+`.env`. `AGENT_MODEL` is replaced by `OPENROUTER_MODEL`.
+
+`--cm-args` remains available for shared settings. `--condition-cm-args` supplies
+per-condition overrides, for example `'{"B":{},"C":{},"D":{}}'`; empty objects
+retain the method owners' defaults.
+
+| Setting | Current default |
 |---|---|
 | Max agent steps | 40 |
-| Timeout per question | 15 min |
-| Search results per query | 5 (300-char snippets) |
-| Opened document length | 6,000 chars |
-| API retries | 6, exponential backoff (not counted as steps) |
+| Episode timeout | 900 seconds, checked between iterations |
+| Search results per query | `benchmark.py`: 3; `agent.py`: 5; 400-character prefixes |
+| Opened document length | 12,000 characters |
+| API retries | 3 outer retries, plus unchanged SDK retry behavior |
+| Maximum output tokens per request | 2,048 |
 
-### Frozen settings (fill in after the pilot)
-| | Value |
+Freeze the model, method settings, dataset/index, prompts, tools, and limits
+before paired experiments. The manifest records these settings and relevant
+implementation hashes; pricing and diagnostic-output options stay separate.
+
+### Grade saved answers separately
+
+After all requested condition files are complete, an offline summary reuses only
+matching cached grades:
+
+```bash
+python evaluate.py --run-dir experiments/selected-set \
+    --judge-model "$JUDGE_MODEL" --offline
+```
+
+Set `JUDGE_MODEL` to the group's agreed judge. Omit `--offline` only when grading
+requests are intended; that invocation can incur API charges. The existing
+semantic grading criterion is preserved. Ungraded completed answers remain
+unknown, and unsuccessful episodes count as incorrect. Grades are invalidated
+when answers, references, questions, or grading configuration change.
+
+## Output and accounting
+
+The benchmark writes `manifest.json`, `selected_ids.txt`, and one JSONL file per
+condition in the caller-selected output directory. Each line is an episode.
+
+| Field | Contents |
 |---|---|
-| Model (`AGENT_MODEL`) | |
-| B `--cm-args` | |
-| C `--cm-args` | |
-| D `--cm-args` | |
-| Pilot / main question counts | 10 / |
+| `id`, `episode_id`, `condition`, `answer`, `stop_reason` | Task identity, submitted answer and termination |
+| `requested_model`, `config_id`, `research_config`, `code_revision` | Model and configuration provenance |
+| `usage` | Input/output/cache totals, estimated cost, observed call attempts and API time |
+| `events` | Call outcomes, model IDs, usage, latency, search queries, document IDs and tool status |
+| `manager_stats`, `manager_runtime` | Method counters and resolved compressor/device details |
+| `total_seconds`, `initialization_seconds` | Episode duration and separate manager initialization |
+| `notes`, diagnostic references | Research notes and optional content-addressed payloads |
 
----
+Total tokens are input plus output; cached input is a subset. Missing
+measurements propagate to dependent totals. Research and memory calls share the
+same accounting path. SDK-internal retries are contained within an observed
+wrapper attempt. Episode timing starts after manager initialization; in-flight
+calls and synchronous compression can overrun the between-iteration timeout.
 
-## Output: one JSON file per question
+`--diagnostics` saves exact request bodies and pre/post-management tool results
+under the run's `.diagnostics/` directory. `--save-history` adds final history.
+Keep these payloads local; they can contain benchmark text and sensitive content.
 
-`runs/<set>/<condition>/<query_id>.json`
-
-| Field | Meaning |
-|---|---|
-| `query_id`, `status`, `tool_call_counts`, `retrieved_docids`, `result` | Fields read by the BrowseComp-Plus grader. `status` is `completed`, `step_limit`, `timeout` or `context_exceeded` |
-| `usage` | Totals: `input`, `cached`, `output` tokens, `cost` ($), `agent_calls`, `memory_calls` |
-| `calls` | Per API call: tokens, cost, context size, latency, purpose (`agent` or `memory_write`) |
-| `manager_stats` | Condition-specific counters (B evictions/recalls, C compression ratio and time) |
-| `notes`, `history` | The agent's scratchpad and full trajectory, for failure analysis |
-
-Runs that end without an answer are scored as incorrect, and their cost still counts.
+The standard-library [`evaluation/` module](evaluation/README.md) documents
+schemas, metric formulas, compatibility checks and offline aggregation across
+compatible run directories. Its tests require neither credentials nor resources.
 
 ---
 
@@ -181,7 +215,12 @@ Runs that end without an answer are scored as incorrect, and their cost still co
 ```
 .env  data/  topics-qrels/  indexes/  cache/  __pycache__/
 ```
-These are already in `.gitignore`. Runs: commit only the final `runs/main/` logs if the team agrees (they are needed to reproduce the figures). Pilot runs can stay local.
+The group's existing experiment-sharing policy is preserved: share final run
+artifacts only when the team agrees. Development directories under `runs/dev_*/`,
+root-level `runs/dev_*.json` reports, and optional `.diagnostics/` payloads stay
+local. Other experiment directories remain available for the group's workflow.
+Existing data, index, cache and credential ignore rules continue to apply;
+previously tracked artifacts remain unchanged.
 
 ---
 
